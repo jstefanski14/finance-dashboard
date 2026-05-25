@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Josh Stefanski — Financial Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f9f9f8; --surface: #ffffff; --surface2: #f3f2ee;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --text: #1a1a18; --text2: #6b6a65; --text3: #9b9a95;
+    --green: #0f6e56; --green-bg: #e1f5ee;
+    --red: #a32d2d; --red-bg: #fcebeb;
+    --amber: #854f0b; --amber-bg: #faeeda;
+    --blue: #185fa5; --blue-bg: #e6f1fb;
+    --purple: #534ab7; --purple-bg: #eeedfe;
+    --radius: 10px; --radius-sm: 7px;
+    --font: -apple-system, 'Helvetica Neue', sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --surface: #252523; --surface2: #2e2e2b;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+      --text: #f0efe8; --text2: #9b9a95; --text3: #6b6a65;
+      --green: #5dcaa5; --green-bg: #04342c;
+      --red: #f09595; --red-bg: #501313;
+      --amber: #fac775; --amber-bg: #412402;
+      --blue: #85b7eb; --blue-bg: #042c53;
+      --purple: #afa9ec; --purple-bg: #26215c;
+    }
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+  .app { max-width: 860px; margin: 0 auto; padding: 0 0 3rem; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; border-bottom: 0.5px solid var(--border); margin-bottom: 1.25rem; }
+  .topbar-left { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--blue-bg); color: var(--blue); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .topbar-title { font-size: 15px; font-weight: 600; }
+  .topbar-sub { font-size: 12px; color: var(--text2); }
+  .badge { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 500; display: inline-block; }
+  .badge-amber { background: var(--amber-bg); color: var(--amber); }
+  .badge-red { background: var(--red-bg); color: var(--red); }
+  .badge-green { background: var(--green-bg); color: var(--green); }
+  .badge-blue { background: var(--blue-bg); color: var(--blue); }
+  .badge-purple { background: var(--purple-bg); color: var(--purple); }
+  .nav { display: flex; gap: 2px; padding: 0 1.5rem; margin-bottom: 1.5rem; border-bottom: 0.5px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav-btn { background: none; border: none; cursor: pointer; padding: 8px 12px; font-size: 13px; color: var(--text2); border-bottom: 2px solid transparent; margin-bottom: -0.5px; white-space: nowrap; font-family: var(--font); display: flex; align-items: center; gap: 5px; transition: color 0.15s; }
+  .nav-btn.active { color: var(--text); font-weight: 600; border-bottom-color: var(--text); }
+  .nav-btn:hover { color: var(--text); }
+  .page { display: none; padding: 0 1.5rem; }
+  .page.active { display: block; }
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
+  .metric { background: var(--surface2); border-radius: var(--radius-sm); padding: 0.875rem 1rem; }
+  .metric-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+  .metric-val { font-size: 20px; font-weight: 600; color: var(--text); line-height: 1.1; }
+  .metric-val.green { color: var(--green); }
+  .metric-val.red { color: var(--red); }
+  .metric-val.amber { color: var(--amber); }
+  .metric-val.blue { color: var(--blue); }
+  .metric-val.purple { color: var(--purple); }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .card-title { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.875rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+  .card-title-action { font-size: 11px; color: var(--blue); cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; gap: 8px; }
+  .row:last-child { border-bottom: none; }
+  .row-label { color: var(--text2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .row-val { font-weight: 600; color: var(--text); white-space: nowrap; }
+  .row-val.green { color: var(--green); }
+  .row-val.red { color: var(--red); }
+  .row-val.amber { color: var(--amber); }
+  .row-val.blue { color: var(--blue); }
+  .row-val.purple { color: var(--purple); }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 560px) { .two-col { grid-template-columns: 1fr; } }
+  .chart-wrap { position: relative; width: 100%; height: 210px; margin-top: 0.75rem; }
+  .chart-wrap-tall { position: relative; width: 100%; height: 270px; margin-top: 0.75rem; }
+  .chart-wrap-hbar { position: relative; width: 100%; margin-top: 0.75rem; }
+  .debt-item { padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+  .debt-item:last-child { border-bottom: none; }
+  .debt-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+  .debt-name { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .debt-meta { display: flex; gap: 14px; font-size: 12px; color: var(--text2); flex-wrap: wrap; }
+  .debt-meta b { color: var(--text); }
+  .progress-bar { height: 4px; background: var(--surface2); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .progress-fill { height: 4px; border-radius: 2px; transition: width 0.4s; }
+  .flag { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; line-height: 1.55; }
+  .flag:last-child { border-bottom: none; }
+  .flag-icon { font-size: 17px; margin-top: 1px; flex-shrink: 0; }
+  .flag strong { font-weight: 600; display: block; margin-bottom: 2px; }
+  .toggle-group { display: flex; gap: 5px; }
+  .toggle-btn { font-size: 11px; padding: 4px 10px; border: 0.5px solid var(--border2); border-radius: 20px; cursor: pointer; background: none; color: var(--text2); font-family: var(--font); transition: all 0.15s; }
+  .toggle-btn.on { background: var(--surface2); border-color: var(--border2); color: var(--text); font-weight: 600; }
+  .edit-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+  .edit-row:last-child { border-bottom: none; }
+  .edit-label { color: var(--text2); flex: 1; }
+  .edit-input { width: 130px; font-size: 13px; text-align: right; padding: 4px 8px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-family: var(--font); }
+  .save-btn { background: var(--blue); color: #fff; border: none; border-radius: var(--radius-sm); padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 1rem; font-family: var(--font); }
+  .save-btn:hover { opacity: 0.88; }
+  .export-bar { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .exp-btn { font-size: 12px; padding: 6px 12px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); cursor: pointer; background: var(--surface); color: var(--text2); display: flex; align-items: center; gap: 5px; font-family: var(--font); }
+  .exp-btn:hover { color: var(--text); border-color: var(--text); }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 6px; font-size: 11px; color: var(--text2); }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+
+  /* slider */
+  .slider-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+  .slider-row label { font-size: 12px; color: var(--text2); min-width: 160px; }
+  .slider-row input[type=range] { flex: 1; accent-color: var(--blue); }
+  .slider-val { font-size: 13px; font-weight: 600; min-width: 70px; text-align: right; color: var(--text); }
+
+  /* APR countdown */
+  .apr-card { background: var(--red-bg); border: 0.5px solid var(--red); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .apr-title { font-size: 11px; font-weight: 600; color: var(--red); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.5rem; display:flex; align-items:center; gap:6px; }
+  .apr-items { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media(max-width:480px){ .apr-items { grid-template-columns:1fr; } }
+  .apr-item { background: var(--surface); border-radius: var(--radius-sm); padding: 0.75rem 1rem; }
+  .apr-item-name { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+  .apr-item-meta { font-size: 11px; color: var(--text2); margin-bottom: 6px; }
+  .apr-timer { font-size: 22px; font-weight: 700; color: var(--red); }
+  .apr-timer-label { font-size: 10px; color: var(--text2); }
+
+  /* household toggle banner */
+  .hh-banner { display: flex; align-items: center; gap: 10px; background: var(--purple-bg); border: 0.5px solid var(--purple); border-radius: var(--radius-sm); padding: 8px 14px; margin-bottom: 1rem; font-size: 13px; }
+  .hh-banner-label { color: var(--purple); font-weight: 600; flex: 1; }
+  .hh-switch { position: relative; display: inline-block; width: 36px; height: 20px; flex-shrink:0; }
+  .hh-switch input { opacity:0; width:0; height:0; }
+  .hh-slider { position:absolute; cursor:pointer; inset:0; background:var(--border2); border-radius:20px; transition:.2s; }
+  .hh-slider:before { content:''; position:absolute; width:14px; height:14px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.2s; }
+  .hh-switch input:checked + .hh-slider { background: var(--purple); }
+  .hh-switch input:checked + .hh-slider:before { transform: translateX(16px); }
+
+  /* conversion table */
+  .conv-table { width:100%; border-collapse:collapse; font-size:13px; margin-top:0.5rem; }
+  .conv-table th { font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--text2); padding:5px 8px; border-bottom:0.5px solid var(--border); text-align:left; font-weight:600; }
+  .conv-table td { padding:7px 8px; border-bottom:0.5px solid var(--border); }
+  .conv-table tr:last-child td { border-bottom:none; }
+  .conv-table tr:hover td { background: var(--surface2); }
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="avatar">JS</div>
+    <div>
+      <div class="topbar-title">Josh Stefanski</div>
+      <div class="topbar-sub">Personal Finance Dashboard</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="badge badge-purple" id="hhBadge" style="display:none">Household view</span>
+    <span class="badge badge-amber" id="lastUpdate">Last updated: today</span>
+  </div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="switchPage('overview')"><i class="ti ti-layout-dashboard"></i> Overview</button>
+  <button class="nav-btn" onclick="switchPage('assets')"><i class="ti ti-trending-up"></i> Assets</button>
+  <button class="nav-btn" onclick="switchPage('debt')"><i class="ti ti-credit-card"></i> Debt</button>
+  <button class="nav-btn" onclick="switchPage('cashflow')"><i class="ti ti-arrows-exchange"></i> Cash flow</button>
+  <button class="nav-btn" onclick="switchPage('retirement')"><i class="ti ti-beach"></i> Retirement</button>
+  <button class="nav-btn" onclick="switchPage('planner')"><i class="ti ti-calculator"></i> Planners</button>
+  <button class="nav-btn" onclick="switchPage('alerts')"><i class="ti ti-bell"></i> Alerts <span class="badge badge-red" id="alertBadgeNav">5</span></button>
+  <button class="nav-btn" onclick="switchPage('settings')"><i class="ti ti-adjustments"></i> Update data</button>
+</div>
+
+<!-- OVERVIEW -->
+<div class="page active" id="page-overview">
+  <div id="aprBanner"></div>
+  <div class="hh-banner">
+    <i class="ti ti-users" style="color:var(--purple);font-size:16px"></i>
+    <span class="hh-banner-label">Household view — include Olivia's income ($50k)</span>
+    <label class="hh-switch"><input type="checkbox" id="hhToggleOverview" onchange="setHousehold(this.checked)"><span class="hh-slider"></span></label>
+  </div>
+  <div class="metric-grid" id="overviewMetrics"></div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">Net worth breakdown</div>
+      <div class="chart-wrap"><canvas id="nwChart" role="img" aria-label="Net worth by account"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Monthly cash flow</div>
+      <div class="chart-wrap"><canvas id="cfChart" role="img" aria-label="Income vs expenses"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Retirement trajectory <span class="card-title-action" onclick="switchPage('retirement')">Full view →</span></div>
+    <div class="chart-wrap"><canvas id="retireLine" role="img" aria-label="Portfolio projection to age 50"></canvas></div>
+  </div>
+</div>
+
+<!-- ASSETS -->
+<div class="page" id="page-assets">
+  <div class="metric-grid" id="assetMetrics"></div>
+  <div class="two-col">
+    <div class="card"><div class="card-title">Retirement accounts</div><div id="retAccounts"></div></div>
+    <div class="card"><div class="card-title">Taxable & liquid</div><div id="taxableAccounts"></div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Allocation</div>
+    <div class="legend" id="allocLegend"></div>
+    <div class="chart-wrap"><canvas id="allocChart" role="img" aria-label="Asset allocation donut"></canvas></div>
+  </div>
+</div>
+
+<!-- DEBT -->
+<div class="page" id="page-debt">
+  <div class="metric-grid" id="debtMetrics"></div>
+  <div class="card">
+    <div class="card-title">Payoff order
+      <div class="toggle-group">
+        <button class="toggle-btn on" id="btn-avalanche" onclick="setStrategy('avalanche')">Avalanche</button>
+        <button class="toggle-btn" id="btn-snowball" onclick="setStrategy('snowball')">Snowball</button>
+      </div>
+    </div>
+    <div id="debtList"></div>
+    <div style="margin-top:0.75rem;font-size:12px;color:var(--text2)" id="strategyNote"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Balance by account</div>
+    <div class="chart-wrap-hbar" id="debtChartWrap"><canvas id="debtChart" role="img" aria-label="Debt balances"></canvas></div>
+  </div>
+</div>
+
+<!-- CASH FLOW -->
+<div class="page" id="page-cashflow">
+  <div class="hh-banner">
+    <i class="ti ti-users" style="color:var(--purple);font-size:16px"></i>
+    <span class="hh-banner-label">Household view — include Olivia's income ($50k)</span>
+    <label class="hh-switch"><input type="checkbox" id="hhToggleCF" onchange="setHousehold(this.checked)"><span class="hh-slider"></span></label>
+  </div>
+  <div class="metric-grid" id="cfMetrics"></div>
+  <div class="two-col">
+    <div class="card"><div class="card-title">Income (monthly)</div><div id="incomeList"></div></div>
+    <div class="card"><div class="card-title">Fixed expenses</div><div id="fixedList"></div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Variable spending <span class="badge badge-blue">YTD avg/mo — Capital One</span></div>
+    <div id="varList"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Recommended surplus allocation</div>
+    <div class="legend" id="surplusLegend"></div>
+    <div class="chart-wrap"><canvas id="surplusChart" role="img" aria-label="Surplus allocation"></canvas></div>
+  </div>
+</div>
+
+<!-- RETIREMENT -->
+<div class="page" id="page-retirement">
+  <div class="hh-banner">
+    <i class="ti ti-users" style="color:var(--purple);font-size:16px"></i>
+    <span class="hh-banner-label">Household view — include Olivia's income & contributions</span>
+    <label class="hh-switch"><input type="checkbox" id="hhToggleRet" onchange="setHousehold(this.checked)"><span class="hh-slider"></span></label>
+  </div>
+  <div class="metric-grid" id="retMetrics"></div>
+  <div class="card">
+    <div class="card-title">FIRE projection to age 50</div>
+    <div class="legend">
+      <span><span class="legend-dot" style="background:#0f6e56"></span>Projected portfolio</span>
+      <span><span class="legend-dot" style="background:#a32d2d"></span>FIRE target</span>
+    </div>
+    <div class="chart-wrap-tall"><canvas id="fireChart" role="img" aria-label="FIRE projection chart"></canvas></div>
+  </div>
+  <div class="two-col">
+    <div class="card"><div class="card-title">Account breakdown</div><div id="retBreakdown"></div></div>
+    <div class="card"><div class="card-title">Key assumptions</div><div id="retAssumptions"></div></div>
+  </div>
+</div>
+
+<!-- PLANNERS -->
+<div class="page" id="page-planner">
+  <div style="display:flex;gap:6px;margin-bottom:1.25rem;flex-wrap:wrap;">
+    <button class="toggle-btn on" id="ptab-savings" onclick="setPlannerTab('savings')">Contribution restart</button>
+    <button class="toggle-btn" id="ptab-conversion" onclick="setPlannerTab('conversion')">Roth conversion</button>
+    <button class="toggle-btn" id="ptab-apr" onclick="setPlannerTab('apr')">0% APR countdown</button>
+  </div>
+
+  <!-- Savings restart planner -->
+  <div id="planner-savings">
+    <div class="card">
+      <div class="card-title">Contribution restart — interactive planner</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:1rem;">Drag the sliders to model your weekly contributions. Previously you saved 33.1% — see how different levels rebuild your HYSA and Roth balance by Oct 2026 (wedding) and age 50.</p>
+      <div class="slider-row"><label>Roth IRA (weekly)</label><input type="range" id="sl-roth" min="0" max="270" step="5" value="135" oninput="updateSavingsPlanner()"><span class="slider-val" id="sv-roth">$135/wk</span></div>
+      <div class="slider-row"><label>HYSA (weekly)</label><input type="range" id="sl-hysa" min="0" max="270" step="5" value="125" oninput="updateSavingsPlanner()"><span class="slider-val" id="sv-hysa">$125/wk</span></div>
+      <div class="slider-row"><label>Brokerage (weekly)</label><input type="range" id="sl-brok" min="0" max="270" step="5" value="0" oninput="updateSavingsPlanner()"><span class="slider-val" id="sv-brok">$0/wk</span></div>
+    </div>
+    <div class="metric-grid" id="savingsMetrics"></div>
+    <div class="card">
+      <div class="card-title">HYSA rebuild timeline</div>
+      <div class="chart-wrap"><canvas id="hysaChart" role="img" aria-label="HYSA rebuild projection"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Roth IRA growth projection</div>
+      <div class="chart-wrap"><canvas id="rothGrowthChart" role="img" aria-label="Roth IRA growth projection"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Roth conversion planner -->
+  <div id="planner-conversion" style="display:none">
+    <div class="card">
+      <div class="card-title">Roth conversion analyzer — Rollover IRA ($54,375 pre-tax)</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:1rem;">You have $54,375 in a pre-tax Rollover IRA. Converting to Roth now means paying income tax today in exchange for tax-free growth forever and no RMDs. Model the tradeoff below.</p>
+      <div class="slider-row"><label>Annual conversion amount</label><input type="range" id="sl-conv" min="0" max="54375" step="500" value="10000" oninput="updateConversion()"><span class="slider-val" id="sv-conv">$10,000</span></div>
+      <div class="slider-row"><label>Your marginal tax rate (%)</label><input type="range" id="sl-taxrate" min="20" max="37" step="1" value="22" oninput="updateConversion()"><span class="slider-val" id="sv-taxrate">22%</span></div>
+    </div>
+    <div class="metric-grid" id="convMetrics"></div>
+    <div class="card">
+      <div class="card-title">Year-by-year conversion schedule</div>
+      <table class="conv-table">
+        <thead><tr><th>Year</th><th>Convert</th><th>Tax cost</th><th>Pre-tax remaining</th><th>Roth balance (at 7%)</th><th>Breakeven</th></tr></thead>
+        <tbody id="convTable"></tbody>
+      </table>
+    </div>
+    <div class="card" style="background:var(--amber-bg);border-color:var(--amber)">
+      <div class="card-title" style="color:var(--amber)"><i class="ti ti-alert-triangle"></i> Key considerations</div>
+      <div style="font-size:13px;line-height:1.65;color:var(--text)">
+        <p style="margin-bottom:6px">Converting before your October wedding is advantageous — you're filing single at a lower effective rate. After marriage, MFJ brackets are wider but combined income (~$162k) still lands in the 22% bracket.</p>
+        <p style="margin-bottom:6px">The Rollover IRA creates a <b>pro-rata rule</b> problem for backdoor Roth contributions. Eliminating it via conversion also unblocks the backdoor Roth strategy once your income exceeds direct Roth limits.</p>
+        <p>Best practice: convert in tranches that keep you within your current bracket. At $112,500 salary single, your 22% bracket runs to ~$95,375 taxable income — leaving some room for modest conversions each year.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- APR Countdown -->
+  <div id="planner-apr" style="display:none">
+    <div class="apr-card">
+      <div class="apr-title"><i class="ti ti-alert-triangle"></i> 0% APR expiry tracker — action required</div>
+      <div class="apr-items" id="aprItems"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Payoff plan</div>
+      <div id="aprPayoffPlan"></div>
+    </div>
+    <div class="card" style="background:var(--amber-bg);border-color:var(--amber)">
+      <div class="card-title" style="color:var(--amber)"><i class="ti ti-info-circle"></i> Critical: deferred interest vs. true 0%</div>
+      <div style="font-size:13px;line-height:1.65;color:var(--text)">
+        <p style="margin-bottom:6px"><b>Deferred interest</b> (common at Best Buy, mattress stores): if you carry any balance when the promo ends, ALL backdated interest from purchase date is added instantly. On $2,400 at 29.99% APR for 12 months that could be ~$600+ in a single day.</p>
+        <p><b>True 0% APR</b>: only interest going forward from expiry date. Confirm which you have by calling the issuer or checking your original agreement. Set a calendar reminder 45 days before expiry to pay off the balance in full.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ALERTS -->
+<div class="page" id="page-alerts">
+  <div class="card">
+    <div class="card-title">Action items <span class="badge badge-red" id="alertCount"></span></div>
+    <div id="alertList"></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div class="export-bar">
+    <button class="exp-btn" onclick="exportData()"><i class="ti ti-download"></i> Export JSON</button>
+    <button class="exp-btn" onclick="triggerImport()"><i class="ti ti-upload"></i> Import JSON</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+  <div id="settingsSections"></div>
+  <button class="save-btn" onclick="saveSettings()"><i class="ti ti-check"></i> Save changes</button>
+</div>
+
+</div><!-- .app -->
+
+<script>
+let state = {
+  accounts: { rothIra:58349, rolloverIra:54375, k401:5000, brokerage:15742, crypto:10609, hysa:8000, checking:5815 },
+  debts: [
+    { name:'Personal loan', balance:17000, rate:6.0, minPmt:400, expiryMonths:null },
+    { name:'Student loans', balance:15739, rate:3.85, minPmt:175, expiryMonths:null },
+    { name:'Best Buy (0% APR)', balance:2400, rate:0, minPmt:150, expiryMonths:8 },
+    { name:'Mattress (0% APR)', balance:2051, rate:0, minPmt:94, expiryMonths:24 }
+  ],
+  income: { baseSalary:112500, carStipend:9600, fianceeIncome:50000, profitShare:4500 },
+  expenses: { rent:2500, utilities:250, phone:180, car:350, debtMin:819, subscriptions:50 },
+  variable: { 'Lodging/travel':1036, 'Dining out':768, 'Groceries':516, 'Airfare':451, 'Merchandise':346, 'Healthcare':230, 'Gas':169, 'Other':350 },
+  settings: { age:30, retireAge:50, annualReturn:7, monthlySavings:800, fiTarget:2500000 }
+};
+
+let householdMode = false;
+let activeStrategy = 'avalanche';
+let activePlannerTab = 'savings';
+let charts = {};
+
+const fmt = v => '$' + Math.round(v).toLocaleString();
+const fmtK = v => v >= 1e6 ? '$' + (v/1e6).toFixed(2)+'M' : v >= 1000 ? '$'+(v/1000).toFixed(1)+'k' : fmt(v);
+const pct = v => (v*100).toFixed(1)+'%';
+
+const totalAssets = () => Object.values(state.accounts).reduce((a,b)=>a+b,0);
+const totalDebt = () => state.debts.reduce((a,d)=>a+d.balance,0);
+const netWorth = () => totalAssets() - totalDebt();
+
+function grossMonthly() {
+  const base = (state.income.baseSalary + state.income.carStipend) / 12;
+  return householdMode ? base + state.income.fianceeIncome/12 : base;
+}
+const takeHome = () => grossMonthly() * 0.72;
+const totalFixed = () => Object.values(state.expenses).reduce((a,b)=>a+b,0);
+const totalVariable = () => Object.values(state.variable).reduce((a,b)=>a+b,0);
+const surplus = () => takeHome() - totalFixed() - totalVariable();
+
+function destroyChart(id) { if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+function setHousehold(val) {
+  householdMode = val;
+  document.getElementById('hhToggleOverview').checked = val;
+  document.getElementById('hhToggleCF').checked = val;
+  document.getElementById('hhToggleRet').checked = val;
+  document.getElementById('hhBadge').style.display = val ? 'inline-block' : 'none';
+  const cur = document.querySelector('.page.active').id.replace('page-','');
+  renderPage(cur);
+}
+
+function switchPage(p) {
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>{
+    if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'"+p+"'")) b.classList.add('active');
+  });
+  renderPage(p);
+}
+
+function renderPage(p) {
+  const map = {overview:renderOverview,assets:renderAssets,debt:renderDebt,cashflow:renderCashflow,retirement:renderRetirement,planner:renderPlanner,alerts:renderAlerts,settings:renderSettings};
+  if(map[p]) map[p]();
+}
+
+/* ── APR Banner ── */
+function renderAPRBanner() {
+  const promos = state.debts.filter(d=>d.expiryMonths);
+  if(!promos.length){ document.getElementById('aprBanner').innerHTML=''; return; }
+  const urgent = promos.filter(d=>d.expiryMonths<=9);
+  if(!urgent.length){ document.getElementById('aprBanner').innerHTML=''; return; }
+  document.getElementById('aprBanner').innerHTML = `<div class="apr-card" style="margin-bottom:1rem;cursor:pointer" onclick="switchPage('planner');setPlannerTab('apr')">
+    <div class="apr-title"><i class="ti ti-alarm"></i> 0% APR expiry alert — tap to view payoff plan</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+      ${urgent.map(d=>`<div style="font-size:13px"><b>${d.name}</b> — <span style="color:var(--red);font-weight:700">${d.expiryMonths} months</span> remaining · ${fmt(d.balance)} balance</div>`).join('')}
+    </div>
+  </div>`;
+}
+
+/* ── OVERVIEW ── */
+function renderOverview() {
+  renderAPRBanner();
+  const nw=netWorth(), sp=surplus();
+  const retTotal=state.accounts.rothIra+state.accounts.rolloverIra+state.accounts.k401;
+  const savRate=sp>0?sp/takeHome():0;
+  const modeLabel = householdMode ? ' (household)' : '';
+  document.getElementById('overviewMetrics').innerHTML=[
+    {label:'Net worth',val:fmt(nw),sub:'assets − liabilities',cls:'green'},
+    {label:'Total assets',val:fmtK(totalAssets()),sub:'all accounts',cls:''},
+    {label:'Total debt',val:fmtK(totalDebt()),sub:'4 accounts',cls:'red'},
+    {label:'Monthly surplus'+modeLabel,val:fmt(Math.max(0,sp)),sub:sp<0?'⚠ deficit':'before saving',cls:sp<0?'red':'green'},
+    {label:'Savings rate',val:pct(Math.max(0,savRate)),sub:'of take-home',cls:savRate>0.15?'green':'amber'},
+    {label:'Retirement',val:fmtK(retTotal),sub:'Roth+Rollover+401k',cls:''}
+  ].map(m=>`<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-val ${m.cls}">${m.val}</div><div class="metric-sub">${m.sub}</div></div>`).join('');
+
+  destroyChart('nwChart'); destroyChart('cfChart'); destroyChart('retireLine');
+  const a=state.accounts;
+  const COLORS=['#185FA5','#378ADD','#85B7EB','#1D9E75','#F0997B','#5DCAA5','#B4B2A9'];
+  charts['nwChart']=new Chart(document.getElementById('nwChart'),{
+    type:'doughnut',
+    data:{labels:['Roth IRA','Rollover IRA','401k','Brokerage','Crypto','HYSA','Checking'],datasets:[{data:[a.rothIra,a.rolloverIra,a.k401,a.brokerage,a.crypto,a.hysa,a.checking],backgroundColor:COLORS,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},padding:8,boxWidth:9}}},cutout:'62%'}
+  });
+
+  const inc=takeHome(),fix=totalFixed(),vari=totalVariable(),sur=Math.max(0,inc-fix-vari);
+  charts['cfChart']=new Chart(document.getElementById('cfChart'),{
+    type:'bar',
+    data:{labels:['Take-home','Fixed','Variable','Surplus'],datasets:[{data:[inc,fix,vari,sur],backgroundColor:['#1D9E75','#E24B4A','#BA7517','#185FA5'],borderWidth:0,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}},x:{ticks:{font:{size:11}},grid:{display:false}}}}
+  });
+
+  const s=state.settings,r=s.annualReturn/100/12,yrs=s.retireAge-s.age;
+  const cur=state.accounts.rothIra+state.accounts.rolloverIra+state.accounts.k401+state.accounts.brokerage;
+  const contrib = householdMode ? s.monthlySavings*1.6 : s.monthlySavings;
+  const labels=[],data=[];
+  for(let m=0;m<=yrs*12;m+=12){labels.push('Age '+(s.age+m/12));data.push(Math.round(cur*Math.pow(1+r,m)+contrib*((Math.pow(1+r,m)-1)/r)));}
+  charts['retireLine']=new Chart(document.getElementById('retireLine'),{
+    type:'line',
+    data:{labels,datasets:[{data,borderColor:'#1D9E75',backgroundColor:'rgba(15,110,86,0.07)',fill:true,tension:0.35,pointRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}},x:{ticks:{font:{size:11}},grid:{display:false}}}}
+  });
+}
+
+/* ── ASSETS ── */
+function renderAssets() {
+  const a=state.accounts;
+  const retTotal=a.rothIra+a.rolloverIra+a.k401,liquid=a.hysa+a.checking,tax=a.brokerage+a.crypto;
+  document.getElementById('assetMetrics').innerHTML=[
+    {label:'Total assets',val:fmtK(totalAssets()),sub:'',cls:''},
+    {label:'Retirement',val:fmtK(retTotal),sub:'tax-advantaged',cls:''},
+    {label:'Taxable invest.',val:fmtK(tax),sub:'brokerage + crypto',cls:''},
+    {label:'Liquid',val:fmtK(liquid),sub:'HYSA + checking',cls:liquid<15000?'amber':'green'},
+    {label:'Emergency fund',val:(liquid/totalFixed()).toFixed(1)+'mo',sub:'target: 3mo+',cls:liquid/totalFixed()<3?'amber':'green'}
+  ].map(m=>`<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-val ${m.cls}">${m.val}</div><div class="metric-sub">${m.sub}</div></div>`).join('');
+
+  document.getElementById('retAccounts').innerHTML=[
+    {name:'Roth IRA',val:a.rothIra,note:'Tax-free growth, no RMD',badge:'Roth',bcls:'badge-green'},
+    {name:'Rollover IRA',val:a.rolloverIra,note:'Pre-tax — Roth conversion candidate',badge:'Trad',bcls:'badge-amber'},
+    {name:'401(k)',val:a.k401,note:'Profit share only, no match',badge:'401k',bcls:'badge-blue'}
+  ].map(r=>`<div class="row"><span class="row-label">${r.name} <span class="badge ${r.bcls}">${r.badge}</span></span><div style="text-align:right"><div class="row-val">${fmt(r.val)}</div><div style="font-size:11px;color:var(--text2)">${r.note}</div></div></div>`).join('');
+
+  document.getElementById('taxableAccounts').innerHTML=[
+    {name:'Brokerage',val:a.brokerage,note:'LTCG if held 1yr+'},
+    {name:'Crypto',val:a.crypto,note:'High volatility, no tax shelter'},
+    {name:'HYSA',val:a.hysa,note:'Emergency fund / short-term'},
+    {name:'Checking',val:a.checking,note:'Operating cash'}
+  ].map(r=>`<div class="row"><span class="row-label">${r.name}</span><div style="text-align:right"><div class="row-val">${fmt(r.val)}</div><div style="font-size:11px;color:var(--text2)">${r.note}</div></div></div>`).join('');
+
+  const COLS=['#185FA5','#1D9E75','#F0997B','#5DCAA5','#B4B2A9'];
+  const aLabels=['Retirement accts','Brokerage','Crypto','HYSA','Checking'];
+  const aVals=[retTotal,a.brokerage,a.crypto,a.hysa,a.checking];
+  document.getElementById('allocLegend').innerHTML=aLabels.map((l,i)=>`<span><span class="legend-dot" style="background:${COLS[i]}"></span>${l} (${pct(aVals[i]/totalAssets())})</span>`).join('');
+  destroyChart('allocChart');
+  charts['allocChart']=new Chart(document.getElementById('allocChart'),{
+    type:'doughnut',
+    data:{labels:aLabels,datasets:[{data:aVals,backgroundColor:COLS,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'62%'}
+  });
+}
+
+/* ── DEBT ── */
+function setStrategy(s){
+  activeStrategy=s;
+  document.getElementById('btn-avalanche').classList.toggle('on',s==='avalanche');
+  document.getElementById('btn-snowball').classList.toggle('on',s==='snowball');
+  renderDebtList();
+}
+
+function renderDebt(){
+  const minPmt=state.debts.reduce((a,d)=>a+d.minPmt,0);
+  document.getElementById('debtMetrics').innerHTML=[
+    {label:'Total debt',val:fmtK(totalDebt()),sub:'4 accounts',cls:'red'},
+    {label:'Min payments',val:fmt(minPmt)+'/mo',sub:'combined',cls:''},
+    {label:'Highest rate',val:'6%',sub:'personal loan',cls:'amber'},
+    {label:'0% APR debt',val:fmt(4451),sub:'watch expiry dates!',cls:'blue'}
+  ].map(m=>`<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-val ${m.cls}">${m.val}</div><div class="metric-sub">${m.sub}</div></div>`).join('');
+  renderDebtList();
+  renderDebtChart();
+}
+
+function renderDebtList(){
+  let sorted=[...state.debts];
+  if(activeStrategy==='avalanche') sorted.sort((a,b)=>b.rate-a.rate);
+  else sorted.sort((a,b)=>a.balance-b.balance);
+  const extra=Math.max(0,surplus())*0.3;
+  let html='';
+  sorted.forEach((d,i)=>{
+    const isFirst=i===0,moAdd=isFirst?extra:0,totalPmt=d.minPmt+moAdd;
+    let months;
+    if(d.rate===0) months=Math.ceil(d.balance/d.minPmt);
+    else{const mr=d.rate/100/12;months=Math.ceil(-Math.log(1-(mr*d.balance/totalPmt))/Math.log(1+mr));}
+    const pd=new Date();pd.setMonth(pd.getMonth()+(isNaN(months)||months<0||months>600?99:months));
+    const payoffStr=(isNaN(months)||months<0||months>600)?'—':pd.toLocaleDateString('en-US',{month:'short',year:'numeric'});
+    const expiry=d.expiryMonths?`<span class="badge badge-red">0% expires ~${d.expiryMonths}mo</span>`:'';
+    html+=`<div class="debt-item">
+      <div class="debt-header">
+        <div class="debt-name">${d.name} <span class="badge ${isFirst?'badge-amber':'badge-blue'}">#${i+1}</span>${expiry}</div>
+        <div class="row-val ${d.rate>0?'red':''}">${fmt(d.balance)}</div>
+      </div>
+      <div class="debt-meta">
+        <span>Rate: <b>${d.rate}%</b></span><span>Min: <b>${fmt(d.minPmt)}/mo</b></span>
+        ${isFirst&&moAdd>0?`<span>Extra: <b>+${fmt(moAdd)}/mo</b></span>`:''}
+        <span>Payoff: <b>${payoffStr}</b></span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.round(d.balance/totalDebt()*100)}%;background:${isFirst?'#a32d2d':'#378ADD'}"></div></div>
+    </div>`;
+  });
+  document.getElementById('debtList').innerHTML=html;
+  document.getElementById('strategyNote').innerHTML=activeStrategy==='avalanche'
+    ?'<i class="ti ti-info-circle"></i> Avalanche: personal loan (6%) first — minimizes total interest. Estimated savings vs snowball: ~$340.'
+    :'<i class="ti ti-info-circle"></i> Snowball: smallest balance first. Faster psychological wins, slightly more interest overall.';
+}
+
+function renderDebtChart(){
+  destroyChart('debtChart');
+  const sorted=[...state.debts].sort((a,b)=>b.balance-a.balance);
+  document.getElementById('debtChartWrap').style.height=(sorted.length*50+60)+'px';
+  charts['debtChart']=new Chart(document.getElementById('debtChart'),{
+    type:'bar',
+    data:{labels:sorted.map(d=>d.name),datasets:[{label:'Balance',data:sorted.map(d=>d.balance),backgroundColor:sorted.map(d=>d.rate>0?'#E24B4A':'#378ADD'),borderWidth:0,borderRadius:3}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.parsed.x)}}},scales:{x:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}},y:{ticks:{font:{size:11}},grid:{display:false}}}}
+  });
+}
+
+/* ── CASH FLOW ── */
+function renderCashflow(){
+  const th=takeHome(),sp=surplus();
+  const modeLabel=householdMode?' (household)':'';
+  document.getElementById('cfMetrics').innerHTML=[
+    {label:'Gross monthly'+modeLabel,val:fmt(grossMonthly()),sub:householdMode?'Josh + Olivia':'salary + stipend',cls:''},
+    {label:'Take-home (~28%)',val:fmt(th),sub:'estimated net',cls:''},
+    {label:'Fixed expenses',val:fmt(totalFixed()),sub:pct(totalFixed()/th)+' of take-home',cls:''},
+    {label:'Variable',val:fmt(totalVariable()),sub:pct(totalVariable()/th)+' of take-home',cls:''},
+    {label:'Surplus',val:fmt(Math.max(0,sp)),sub:sp<0?'⚠ deficit':'to deploy',cls:sp<0?'red':'green'}
+  ].map(m=>`<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-val ${m.cls}">${m.val}</div><div class="metric-sub">${m.sub}</div></div>`).join('');
+
+  const incRows=[
+    {name:'Josh salary (÷12)',val:state.income.baseSalary/12,cls:'green'},
+    {name:'Car stipend (÷12)',val:state.income.carStipend/12,cls:'green'},
+    {name:'Profit share (est. ÷12)',val:state.income.profitShare/12,cls:'green'}
+  ];
+  if(householdMode) incRows.push({name:'Olivia income (÷12)',val:state.income.fianceeIncome/12,cls:'purple'});
+  document.getElementById('incomeList').innerHTML=incRows.map(r=>`<div class="row"><span class="row-label">${r.name}</span><span class="row-val ${r.cls}">${fmt(r.val)}/mo</span></div>`).join('');
+
+  const e=state.expenses;
+  document.getElementById('fixedList').innerHTML=[
+    {name:'Rent',val:e.rent},{name:'Utilities',val:e.utilities},{name:'Phone/internet',val:e.phone},
+    {name:'Car / insurance',val:e.car},{name:'Debt minimums',val:e.debtMin},{name:'Subscriptions',val:e.subscriptions}
+  ].map(r=>`<div class="row"><span class="row-label">${r.name}</span><span class="row-val red">${fmt(r.val)}/mo</span></div>`).join('');
+
+  document.getElementById('varList').innerHTML=Object.entries(state.variable)
+    .map(([k,v])=>`<div class="row"><span class="row-label">${k}</span><span class="row-val amber">${fmt(v)}/mo</span></div>`).join('');
+
+  const spAmt=Math.max(0,sp);
+  const allocCols=['#185FA5','#1D9E75','#E24B4A','#888780'];
+  const allocLabels=['Roth IRA','HYSA savings','Extra debt payoff','Buffer/flex'];
+  const allocVals=[Math.round(spAmt*0.4),Math.round(spAmt*0.25),Math.round(spAmt*0.2),Math.round(spAmt*0.15)];
+  document.getElementById('surplusLegend').innerHTML=allocLabels.map((l,i)=>`<span><span class="legend-dot" style="background:${allocCols[i]}"></span>${l} (${fmt(allocVals[i])})</span>`).join('');
+  destroyChart('surplusChart');
+  charts['surplusChart']=new Chart(document.getElementById('surplusChart'),{
+    type:'doughnut',
+    data:{labels:allocLabels,datasets:[{data:allocVals,backgroundColor:allocCols,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'60%'}
+  });
+}
+
+/* ── RETIREMENT ── */
+function renderRetirement(){
+  const a=state.accounts;
+  const retTotal=a.rothIra+a.rolloverIra+a.k401;
+  const s=state.settings,r=s.annualReturn/100/12,yrs=s.retireAge-s.age,months=yrs*12;
+  const contrib=householdMode?s.monthlySavings*1.6:s.monthlySavings;
+  const projected=retTotal*Math.pow(1+r,months)+contrib*((Math.pow(1+r,months)-1)/r);
+  const swr=projected*0.04/12;
+  let coastAge=null;
+  for(let age=s.age;age<=s.retireAge;age++){if(retTotal*Math.pow(1+r,(s.retireAge-age)*12)>=s.fiTarget){coastAge=age;break;}}
+
+  document.getElementById('retMetrics').innerHTML=[
+    {label:'Current retirement',val:fmtK(retTotal),sub:'combined',cls:''},
+    {label:'Projected at '+s.retireAge,val:fmtK(Math.round(projected)),sub:(householdMode?'Household · ':'')+s.annualReturn+'% return',cls:projected>=s.fiTarget?'green':'amber'},
+    {label:'FIRE target',val:fmtK(s.fiTarget),sub:'25× rule / 4% SWR',cls:''},
+    {label:'SWR income',val:fmt(swr)+'/mo',sub:'at projected value',cls:''},
+    {label:'Coast FI age',val:coastAge?coastAge:'>'+s.retireAge,sub:'stop contributing',cls:coastAge&&coastAge<=s.age+5?'green':'amber'},
+    {label:'Gap to target',val:fmtK(Math.max(0,s.fiTarget-projected)),sub:projected>=s.fiTarget?'✓ on track':'increase contributions',cls:projected>=s.fiTarget?'green':'red'}
+  ].map(m=>`<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-val ${m.cls}">${m.val}</div><div class="metric-sub">${m.sub}</div></div>`).join('');
+
+  destroyChart('fireChart');
+  const labels=[],base=[],target=[];
+  for(let m=0;m<=months;m+=12){
+    labels.push('Age '+(s.age+m/12));
+    base.push(Math.round(retTotal*Math.pow(1+r,m)+contrib*((Math.pow(1+r,m)-1)/r)));
+    target.push(s.fiTarget);
+  }
+  charts['fireChart']=new Chart(document.getElementById('fireChart'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'Projected',data:base,borderColor:'#0f6e56',backgroundColor:'rgba(15,110,86,0.07)',fill:true,tension:0.35,pointRadius:3},
+      {label:'FIRE target',data:target,borderColor:'#a32d2d',borderDash:[5,4],fill:false,pointRadius:0,borderWidth:1.5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}},x:{ticks:{font:{size:11}},grid:{display:false}}}}
+  });
+
+  document.getElementById('retBreakdown').innerHTML=[
+    {name:'Roth IRA',val:a.rothIra,pct:a.rothIra/retTotal,note:'Tax-free growth & withdrawals',col:'#185FA5'},
+    {name:'Rollover IRA',val:a.rolloverIra,pct:a.rolloverIra/retTotal,note:'Pre-tax; Roth conversion opportunity',col:'#378ADD'},
+    {name:'401(k)',val:a.k401,pct:a.k401/retTotal,note:'Profit share only, no match',col:'#85B7EB'}
+  ].map(r=>`<div style="padding:9px 0;border-bottom:0.5px solid var(--border)">
+    <div style="display:flex;justify-content:space-between;font-size:13px"><span style="font-weight:600">${r.name}</span><span style="font-weight:600">${fmt(r.val)}</span></div>
+    <div style="font-size:11px;color:var(--text2);margin:2px 0">${r.note}</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${Math.round(r.pct*100)}%;background:${r.col}"></div></div>
+  </div>`).join('');
+
+  document.getElementById('retAssumptions').innerHTML=[
+    {k:'Annual return',v:s.annualReturn+'%'},{k:'Monthly contributions',v:fmt(householdMode?s.monthlySavings*1.6:s.monthlySavings)},
+    {k:'Current age',v:s.age},{k:'Target retirement age',v:s.retireAge},{k:'FIRE target',v:fmt(s.fiTarget)},
+    {k:'View mode',v:householdMode?'Household (Josh + Olivia)':'Josh only'}
+  ].map(r=>`<div class="row"><span class="row-label">${r.k}</span><span class="row-val">${r.v}</span></div>`).join('');
+}
+
+/* ── PLANNERS ── */
+function setPlannerTab(t){
+  activePlannerTab=t;
+  ['savings','conversion','apr'].forEach(tab=>{
+    document.getElementById('ptab-'+tab).classList.toggle('on',tab===t);
+    document.getElementById('planner-'+tab).style.display=tab===t?'block':'none';
+  });
+  if(t==='savings') updateSavingsPlanner();
+  if(t==='conversion') updateConversion();
+  if(t==='apr') renderAPRCountdown();
+}
+
+function renderPlanner(){ setPlannerTab(activePlannerTab); }
+
+/* savings planner */
+function updateSavingsPlanner(){
+  const rothWk=+document.getElementById('sl-roth').value;
+  const hysaWk=+document.getElementById('sl-hysa').value;
+  const brokWk=+document.getElementById('sl-brok').value;
+  document.getElementById('sv-roth').textContent='$'+rothWk+'/wk';
+  document.getElementById('sv-hysa').textContent='$'+hysaWk+'/wk';
+  document.getElementById('sv-brok').textContent='$'+brokWk+'/wk';
+  const rothMo=rothWk*52/12, hysaMo=hysaWk*52/12, brokMo=brokWk*52/12;
+  const totalMo=rothMo+hysaMo+brokMo;
+  const savRate=totalMo/takeHome();
+  const prevRate=0.331;
+  const hysaTarget=17000;
+  const hysaGap=Math.max(0,hysaTarget-state.accounts.hysa);
+  const hysaMonths=hysaMo>0?Math.ceil(hysaGap/hysaMo):Infinity;
+  const weddingMonths=5;
+  const r7=0.07/12;
+
+  // Roth at age 50
+  const curRoth=state.accounts.rothIra;
+  const yearsLeft=state.settings.retireAge-state.settings.age;
+  const rothAt50=curRoth*Math.pow(1+r7,yearsLeft*12)+rothMo*((Math.pow(1+r7,yearsLeft*12)-1)/r7);
+
+  document.getElementById('savingsMetrics').innerHTML=[
+    {label:'Monthly savings',val:fmt(totalMo),sub:'all accounts combined',cls:'green'},
+    {label:'Savings rate',val:pct(Math.max(0,savRate)),sub:'of take-home',cls:savRate>=prevRate?'green':savRate>=0.2?'amber':'red'},
+    {label:'vs. prior 33.1%',val:pct(savRate-prevRate),sub:savRate>=prevRate?'✓ at or above target':'below prior rate',cls:savRate>=prevRate?'green':'amber'},
+    {label:'HYSA rebuild',val:hysaMonths===Infinity?'—':hysaMonths+'mo',sub:'to reach $17k target',cls:hysaMonths<=12?'green':hysaMonths<=18?'amber':'red'},
+    {label:'Roth at age 50',val:fmtK(Math.round(rothAt50)),sub:'Roth IRA projected',cls:'blue'},
+    {label:'Annual Roth contrib.',val:fmt(rothMo*12),sub:rothMo*12>=7000?'✓ maxing limit':'IRS limit: $7,000',cls:rothMo*12>=7000?'green':'amber'}
+  ].map(m=>`<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-val ${m.cls}">${m.val}</div><div class="metric-sub">${m.sub}</div></div>`).join('');
+
+  // HYSA chart
+  destroyChart('hysaChart');
+  const hysaLabels=[],hysaData=[];
+  let bal=state.accounts.hysa;
+  for(let m=0;m<=24;m++){
+    const d=new Date();d.setMonth(d.getMonth()+m);
+    hysaLabels.push(d.toLocaleDateString('en-US',{month:'short',year:'2-digit'}));
+    hysaData.push(Math.round(Math.min(bal,hysaTarget+2000)));
+    bal=Math.min(bal+hysaMo,hysaTarget+2000);
+  }
+  charts['hysaChart']=new Chart(document.getElementById('hysaChart'),{
+    type:'line',
+    data:{labels:hysaLabels,datasets:[
+      {label:'HYSA balance',data:hysaData,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:2},
+      {label:'Target ($17k)',data:Array(25).fill(17000),borderColor:'#a32d2d',borderDash:[4,4],fill:false,pointRadius:0,borderWidth:1.5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},boxWidth:9,padding:10}}},scales:{y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}},x:{ticks:{font:{size:10},maxRotation:45,autoSkip:true},grid:{display:false}}}}
+  });
+
+  // Roth growth chart
+  destroyChart('rothGrowthChart');
+  const rgLabels=[],rgData=[];
+  let rbal=state.accounts.rothIra;
+  for(let m=0;m<=yearsLeft*12;m+=12){
+    rgLabels.push('Age '+(state.settings.age+m/12));
+    rgData.push(Math.round(rbal*Math.pow(1+r7,m)+rothMo*((Math.pow(1+r7,m)-1)/r7)));
+  }
+  charts['rothGrowthChart']=new Chart(document.getElementById('rothGrowthChart'),{
+    type:'line',
+    data:{labels:rgLabels,datasets:[{label:'Roth IRA',data:rgData,borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,0.07)',fill:true,tension:0.35,pointRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}},x:{ticks:{font:{size:11}},grid:{display:false}}}}
+  });
+}
+
+/* Roth conversion */
+function updateConversion(){
+  const convAmt=+document.getElementById('sl-conv').value;
+  const taxRate=+document.getElementById('sl-taxrate').value/100;
+  document.getElementById('sv-conv').textContent='$'+convAmt.toLocaleString();
+  document.getElementById('sv-taxrate').textContent=(taxRate*100).toFixed(0)+'%';
+  const balance=state.accounts.rolloverIra;
+  const yearsToConvert=balance>0?Math.ceil(balance/convAmt):0;
+  const taxCostTotal=convAmt*taxRate*Math.min(yearsToConvert,20);
+  const r=0.07/12;
+  // breakeven: years for Roth tax-free growth to exceed tax cost
+  // simplification: convert $X today, pay $X*taxRate, the Roth grows at 7%
+  // vs keeping pre-tax and withdrawing at taxRate
+  // breakeven when (1+0.07)^n * (1-taxRate) = 1-taxRate... effectively immediate if same rate
+  // More useful: show table
+  const rows=[];
+  let remaining=balance,yr=new Date().getFullYear();
+  for(let i=0;i<Math.min(yearsToConvert,10);i++){
+    const conv=Math.min(convAmt,remaining);
+    const tax=Math.round(conv*taxRate);
+    remaining=Math.round(remaining-conv);
+    const rothVal=Math.round(conv*Math.pow(1+r,( (yearsToConvert-i)*12)));
+    const beYears=Math.round(Math.log(1/(1-taxRate))/Math.log(1.07));
+    rows.push(`<tr><td>${yr+i}</td><td>${fmt(conv)}</td><td style="color:var(--red)">${fmt(tax)}</td><td>${fmt(remaining)}</td><td style="color:var(--green)">${fmtK(rothVal)}</td><td>${beYears} yrs</td></tr>`);
+  }
+  if(yearsToConvert>10) rows.push(`<tr><td colspan="6" style="color:var(--text2);font-size:12px;padding:8px">... ${yearsToConvert-10} more years at ${fmt(convAmt)}/yr to fully convert</td></tr>`);
+  document.getElementById('convTable').innerHTML=rows.join('');
+
+  document.getElementById('convMetrics').innerHTML=[
+    {label:'Annual conversion',val:fmt(convAmt),sub:'per year',cls:'blue'},
+    {label:'Annual tax cost',val:fmt(Math.round(convAmt*taxRate)),sub:'at '+Math.round(taxRate*100)+'% marginal',cls:'amber'},
+    {label:'Years to fully convert',val:yearsToConvert,sub:'at this pace',cls:yearsToConvert<=5?'green':yearsToConvert<=10?'amber':'red'},
+    {label:'Total tax cost',val:fmt(Math.round(Math.min(balance,convAmt*yearsToConvert)*taxRate)),sub:'to fully convert',cls:'red'},
+    {label:'Pre-tax remaining',val:fmt(balance),sub:'Rollover IRA today',cls:''},
+    {label:'Pro-rata problem',val:yearsToConvert>0?'Blocked':'Cleared',sub:'backdoor Roth access',cls:yearsToConvert>0?'red':'green'}
+  ].map(m=>`<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-val ${m.cls}">${m.val}</div><div class="metric-sub">${m.sub}</div></div>`).join('');
+}
+
+/* APR countdown */
+function renderAPRCountdown(){
+  const promos=state.debts.filter(d=>d.expiryMonths!=null);
+  document.getElementById('aprItems').innerHTML=promos.map(d=>{
+    const urgency=d.expiryMonths<=6?'var(--red)':d.expiryMonths<=12?'var(--amber)':'var(--green)';
+    const moNeeded=Math.ceil(d.balance/d.expiryMonths);
+    return `<div class="apr-item">
+      <div class="apr-item-name">${d.name}</div>
+      <div class="apr-item-meta">Balance: ${fmt(d.balance)} · Min pmt: ${fmt(d.minPmt)}/mo</div>
+      <div class="apr-timer" style="color:${urgency}">${d.expiryMonths}</div>
+      <div class="apr-timer-label">months remaining</div>
+      <div style="margin-top:6px;font-size:12px;color:var(--text2)">Need ${fmt(moNeeded)}/mo to pay off in time</div>
+      <div class="progress-bar" style="margin-top:6px"><div class="progress-fill" style="width:${Math.round((1-d.expiryMonths/36)*100)}%;background:${urgency}"></div></div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('aprPayoffPlan').innerHTML=promos.map(d=>{
+    const moNeeded=Math.ceil(d.balance/d.expiryMonths);
+    const surplus_mo=d.minPmt;
+    const onTrack=surplus_mo>=moNeeded;
+    return `<div class="row" style="flex-direction:column;align-items:flex-start;gap:4px;padding:10px 0">
+      <div style="display:flex;justify-content:space-between;width:100%;font-size:13px">
+        <b>${d.name}</b>
+        <span class="badge ${d.expiryMonths<=9?'badge-red':'badge-amber'}">${d.expiryMonths}mo left</span>
+      </div>
+      <div style="font-size:12px;color:var(--text2)">Balance ${fmt(d.balance)} ÷ ${d.expiryMonths} months = <b style="color:var(--text)">${fmt(moNeeded)}/mo needed</b></div>
+      <div style="font-size:12px;color:var(--text2)">Current min payment: ${fmt(d.minPmt)}/mo · Shortfall: <b style="color:${onTrack?'var(--green)':'var(--red)'}">${onTrack?'none':'+'+(moNeeded-surplus_mo)+'/mo needed'}</b></div>
+      <div style="font-size:11px;background:var(--amber-bg);color:var(--amber);border-radius:4px;padding:4px 8px;margin-top:2px">⚠ Set a calendar reminder 45 days before expiry to confirm full payoff</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── ALERTS ── */
+function renderAlerts(){
+  const alerts=[
+    {level:'red',icon:'ti-shield-x',title:'No life or disability insurance',body:'Engaged, sole earner, kids planned in 5 years. A 20-year $1M term policy runs ~$30–40/mo at age 30. Most underinsured life stage — get a quote this week.'},
+    {level:'red',icon:'ti-file-alert',title:'No estate plan or beneficiary review',body:'Before October wedding: update beneficiary designations on Roth ($58k), Rollover ($54k), and 401k. Draft a basic will and POA.'},
+    {level:'amber',icon:'ti-clock-alert',title:'Best Buy 0% APR expires ~8 months',body:'Balance: $2,400. Confirm if deferred interest or true 0%. If deferred, backdated interest hits the day it expires. View full payoff plan in Planners → 0% APR countdown.'},
+    {level:'amber',icon:'ti-trending-up',title:'Savings rate at ~0% — restart plan needed',body:'Previously saving 33.1% of paycheck. Use the Contribution Restart planner to model your weekly targets. Recommended: $135/wk Roth + $125/wk HYSA immediately.'},
+    {level:'amber',icon:'ti-building-bank',title:'HYSA below 3-month emergency target',body:'Current: $8,000. Monthly spend ~$5,800. 3-month target: ~$17,400. Gap: ~$9,400. Model rebuild timeline in Planners → Contribution Restart.'},
+    {level:'blue',icon:'ti-users',title:'Post-marriage tax filing strategy (Oct 2026)',body:'MFJ combined income ~$162k. Roth limits phase out at $230k MAGI — you\'re clear. Toggle household view on any tab to see combined projections.'},
+    {level:'blue',icon:'ti-rotate',title:'Rollover IRA Roth conversion opportunity',body:'$54,375 pre-tax. Eliminating it also unblocks backdoor Roth. Model the tradeoff in Planners → Roth Conversion.'}
+  ];
+  const urgent=alerts.filter(a=>a.level==='red'||a.level==='amber').length;
+  document.getElementById('alertCount').textContent=urgent;
+  document.getElementById('alertBadgeNav').textContent=urgent;
+  document.getElementById('alertList').innerHTML=alerts.map(a=>{
+    const col=a.level==='red'?'var(--red)':a.level==='amber'?'var(--amber)':'var(--blue)';
+    return `<div class="flag"><i class="ti ${a.icon} flag-icon" style="color:${col}"></i><div><strong style="color:${col}">${a.title}</strong>${a.body}</div></div>`;
+  }).join('');
+}
+
+/* ── SETTINGS ── */
+function renderSettings(){
+  const sections=[
+    {title:'Account balances ($)',fields:[
+      {key:'accounts.rothIra',label:'Roth IRA',val:state.accounts.rothIra},
+      {key:'accounts.rolloverIra',label:'Rollover IRA',val:state.accounts.rolloverIra},
+      {key:'accounts.k401',label:'401(k)',val:state.accounts.k401},
+      {key:'accounts.brokerage',label:'Brokerage',val:state.accounts.brokerage},
+      {key:'accounts.crypto',label:'Crypto',val:state.accounts.crypto},
+      {key:'accounts.hysa',label:'HYSA',val:state.accounts.hysa},
+      {key:'accounts.checking',label:'Checking',val:state.accounts.checking}
+    ]},
+    {title:'Debt balances ($)',fields:[
+      {key:'debt.0.balance',label:'Personal loan',val:state.debts[0].balance},
+      {key:'debt.1.balance',label:'Student loans',val:state.debts[1].balance},
+      {key:'debt.2.balance',label:'Best Buy',val:state.debts[2].balance},
+      {key:'debt.3.balance',label:'Mattress',val:state.debts[3].balance},
+      {key:'debt.2.expiryMonths',label:'Best Buy — months until 0% expires',val:state.debts[2].expiryMonths},
+      {key:'debt.3.expiryMonths',label:'Mattress — months until 0% expires',val:state.debts[3].expiryMonths}
+    ]},
+    {title:'Retirement & projections',fields:[
+      {key:'settings.monthlySavings',label:'Monthly contributions ($)',val:state.settings.monthlySavings},
+      {key:'settings.annualReturn',label:'Expected annual return (%)',val:state.settings.annualReturn},
+      {key:'settings.retireAge',label:'Target retirement age',val:state.settings.retireAge},
+      {key:'settings.fiTarget',label:'FIRE target ($)',val:state.settings.fiTarget}
+    ]},
+    {title:'Income ($)',fields:[
+      {key:'income.baseSalary',label:'Josh base salary',val:state.income.baseSalary},
+      {key:'income.carStipend',label:'Car stipend',val:state.income.carStipend},
+      {key:'income.fianceeIncome',label:"Olivia's income",val:state.income.fianceeIncome},
+      {key:'income.profitShare',label:'Profit share (annual est.)',val:state.income.profitShare}
+    ]}
+  ];
+  document.getElementById('settingsSections').innerHTML=sections.map(s=>`
+    <div class="card">
+      <div class="card-title">${s.title}</div>
+      ${s.fields.map(f=>`<div class="edit-row"><label class="edit-label" for="inp-${f.key}">${f.label}</label><input class="edit-input" id="inp-${f.key}" type="number" data-key="${f.key}" value="${f.val}"></div>`).join('')}
+    </div>`).join('');
+}
+
+function saveSettings(){
+  document.querySelectorAll('.edit-input').forEach(inp=>{
+    const keys=inp.dataset.key.split('.');
+    const val=parseFloat(inp.value);
+    if(keys[0]==='accounts') state.accounts[keys[1]]=val;
+    else if(keys[0]==='debt') state.debts[parseInt(keys[1])][keys[2]]=val;
+    else if(keys[0]==='settings') state.settings[keys[1]]=val;
+    else if(keys[0]==='income') state.income[keys[1]]=val;
+  });
+  document.getElementById('lastUpdate').textContent='Updated: '+new Date().toLocaleDateString();
+  alert('Saved! Navigate to any tab to see updated numbers.');
+}
+
+function exportData(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='josh-finance-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+}
+function triggerImport(){ document.getElementById('importFile').click(); }
+function importData(e){
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{try{state=JSON.parse(ev.target.result);renderPage('overview');switchPage('overview');alert('Data imported!');}catch{alert('Invalid JSON.');}};
+  r.readAsText(file);
+}
+
+renderOverview();
+</script>
+</body>
+</html>
